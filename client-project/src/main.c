@@ -32,7 +32,8 @@ int main(int argc, char *argv[]) {
     memset(&req, 0, sizeof(req));
     int request_provided = 0;
 
-    // Parsing Argomenti (rimosso per brevità)
+
+
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-p") == 0 && i + 1 < argc) {
             port = atoi(argv[i + 1]);
@@ -106,6 +107,9 @@ int main(int argc, char *argv[]) {
     } else if (resp.status == 2) {
         printf("Richiesta non valida\n");
     } else if (resp.status == 0) {
+        // Stampiamo prima il nome della città e i due punti
+        printf("%s: ", req.city);
+
         switch (resp.type) {
             case 't': printf("Temperatura = %.1f C\n", resp.value); break;
             case 'h': printf("Umidità = %.1f%%\n", resp.value); break;
