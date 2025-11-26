@@ -1,7 +1,6 @@
 #include "protocol.h"
 
-// Funzioni Meteo (Implementazione locale al server)
-
+// Funzioni Meteo (Simulazione)
 float get_random_float(float min, float max) {
     return min + (rand() / (float) RAND_MAX) * (max - min);
 }
@@ -11,14 +10,12 @@ float get_humidity()    { return get_random_float(40.0, 95.0); }
 float get_wind()        { return get_random_float(0.0, 50.0); }
 float get_pressure()    { return get_random_float(980.0, 1030.0); }
 
-
 int is_city_valid(const char* city) {
     const char* valid_cities[] = {
         "bari", "roma", "milano", "napoli", "torino",
         "palermo", "genova", "bologna", "firenze", "venezia"
     };
     for (int i = 0; i < 10; i++) {
-        // strcasecmp è mappato su _stricmp per Windows in protocol.h
         if (strcasecmp(city, valid_cities[i]) == 0) return 1;
     }
     return 0;
@@ -32,7 +29,7 @@ int main(int argc, char *argv[]) {
     if (argc == 3 && strcmp(argv[1], "-p") == 0) {
         port = atoi(argv[2]);
     }
-    printf("Server in ascolto sulla porta %d\n", port);
+    printf("Server avviato sulla porta %d\n", port);
 
     // Setup Winsock (solo Windows)
     #if defined _WIN32
@@ -43,14 +40,12 @@ int main(int argc, char *argv[]) {
         }
     #endif
 
-    // Creazione Socket
     int server_socket = socket(PF_INET, SOCK_STREAM, 0);
     if (server_socket < 0) {
         perror("Impossibile creare il socket");
         return -1;
     }
 
-    // Opzione per riutilizzare l'indirizzo rapidamente (utile in fase di debug)
     int opt = 1;
     setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, (char*)&opt, sizeof(opt));
 
@@ -60,36 +55,29 @@ int main(int argc, char *argv[]) {
     server_addr.sin_port = htons(port);
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    // Bind
-    if (bind(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    // Bind: CORREZIONE DEL CASTING: Aggiunto 'const' per compatibilità POSIX rigorosa.
+    if (bind(server_socket, (const struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
         printf("Errore Bind. La porta %d e' forse occupata o servono permessi root?\n", port);
         close(server_socket);
         return -1;
     }
 
-    // Listen
-    if (listen(server_socket, 10) < 0) { // SOMAXCONN a volte crea problemi di portabilità, 10 è sicuro
+    if (listen(server_socket, 10) < 0) {
         printf("Errore durante la fase di Listen.\n");
         close(server_socket);
         return -1;
     }
     printf("In attesa di connessioni...\n");
 
-    // Ciclo Principale
     while (1) {
         struct sockaddr_in client_addr;
-        socklen_t client_len = sizeof(client_addr); // socklen_t gestito in protocol.h
+        socklen_t client_len = sizeof(client_addr);
 
-        // Accept
         int client_socket = accept(server_socket, (struct sockaddr*)&client_addr, &client_len);
-        if (client_socket < 0) {
-            // Su alcuni OS accept può essere interrotto da segnali, non è fatal error
-            continue;
-        }
+        if (client_socket < 0) continue;
 
         printf("Client connesso da IP %s\n", inet_ntoa(client_addr.sin_addr));
 
-        // Ricezione richiesta
         weather_request_t req;
         int bytes_read = recv(client_socket, (char*)&req, sizeof(req), 0);
 
@@ -102,20 +90,17 @@ int main(int argc, char *argv[]) {
         req.city[CITY_LEN - 1] = '\0';
         printf(" -> Richiesta: tipo '%c' per citta '%s'\n", req.type, req.city);
 
-        // Elaborazione
         weather_response_t resp;
-        memset(&resp, 0, sizeof(resp)); // Pulizia memoria
+        memset(&resp, 0, sizeof(resp));
         resp.type = req.type;
 
         if (!is_city_valid(req.city)) {
-            resp.status = 1; // Città non trovata
+            resp.status = 1;
         } else {
-            int type_ok = (req.type == 't' || req.type == 'h' || req.type == 'w' || req.type == 'p');
-
-            if (!type_ok) {
-                resp.status = 2; // Tipo non valido
+            if (strchr("thwp", req.type) == NULL) {
+                resp.status = 2;
             } else {
-                resp.status = 0; // OK
+                resp.status = 0;
                 if (req.type == 't') resp.value = get_temperature();
                 else if (req.type == 'h') resp.value = get_humidity();
                 else if (req.type == 'w') resp.value = get_wind();
@@ -123,7 +108,6 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        // Invio e chiusura
         send(client_socket, (char*)&resp, sizeof(resp), 0);
         close(client_socket);
         printf(" -> Risposta inviata e connessione chiusa.\n\n");
