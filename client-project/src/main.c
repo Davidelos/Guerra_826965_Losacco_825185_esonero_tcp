@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (resp.status == 1) {
-        printf("Città non disponibile\n");
+        printf("Citta' non disponibile\n");
     } else if (resp.status == 2) {
         printf("Richiesta non valida\n");
     } else if (resp.status == 0) {
@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
 
         switch (resp.type) {
             case 't': printf("Temperatura = %.1f C\n", resp.value); break;
-            case 'h': printf("Umidità = %.1f%%\n", resp.value); break;
+            case 'h': printf("Umidita' = %.1f%%\n", resp.value); break;
             case 'w': printf("Vento = %.1f km/h\n", resp.value); break;
             case 'p': printf("Pressione = %.1f hPa\n", resp.value); break;
             default: printf("Dato sconosciuto = %.1f\n", resp.value);
